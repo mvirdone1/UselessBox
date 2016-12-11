@@ -1,20 +1,32 @@
 #include <Servo.h> 
 
+#define SWITCH_PIN 3
+#define FINGER_PIN 9
+#define DOOR_PIN 10
+
 Servo doorServo;
 Servo fingerServo;
-
-int swPin = 2;               //switch on pin 2
 
 int pos = 0;
 int selectedMove = 0;             //move selector
 
 void setup()
 {
-  pinMode(swPin, INPUT);
-  doorServo.attach(9);           //set door servo on Pin 9 pwm
-  fingerServo.attach(10);          //set finger servo on Pin 10 pwm
+  
+  
+  // The interrupt pin is HIGH when the switch is in the "off" position (i.e. no action is required)
+  // The interrupt pin is LOW when the switch is in the "on" position (i.e. it must be turned off)
+  // Setup the input pin with a change detection interrupt
+  pinMode(swPin, INPUT_PULLUP);
+  
+  // Servo setup
+  doorServo.attach(DOOR_PIN);           //setup door servo
+  fingerServo.attach(FINGER_PIN);          //setup finger servo
   doorServo.write(80);           //set door to hiding position 
   fingerServo.write(0);            //set finger to hiding position
+  
+  // A little pause before operation
+  delay(100);
 }
 
 

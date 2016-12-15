@@ -1,13 +1,19 @@
 #include <Servo.h> 
 
+// Setup these directives for your particular hardware configuration
 #define SWITCH_PIN 3
 #define FINGER_PIN 9
 #define DOOR_PIN 10
 
+// Depending on circuit design, the switch can be in the "ON" position as either high or low
+#define SWITCH_ON_POLARITY LOW
+
 Servo doorServo;
 Servo fingerServo;
 
-int pos = 0;
+int volatile doorPos = 0;
+int volatile fingerPos = 0;
+
 int selectedMove = 0;             //move selector
 
 void setup()
@@ -15,9 +21,11 @@ void setup()
   
   
   // The interrupt pin is HIGH when the switch is in the "off" position (i.e. no action is required)
-  // The interrupt pin is LOW when the switch is in the "on" position (i.e. it must be turned off)
+  // The interrupt pin is LOW when the switch is in the "on" position (i.e. it must be turned off)  
+  pinMode(SWITCH_PIN, INPUT_PULLUP);
+
   // Setup the input pin with a change detection interrupt
-  pinMode(swPin, INPUT_PULLUP);
+  // TODO
   
   // Servo setup
   doorServo.attach(DOOR_PIN);           //setup door servo
@@ -32,8 +40,8 @@ void setup()
 
 void loop(){
 
-  //if the switch is on, move door and finger to switch it off
-  if(digitalRead(swPin) == HIGH)
+  //if the switch is on, move door and finger to switch it off	
+  if(digitalRead(SWITCH_PIN) == SWITCH_ON_POLARITY)
   {
     
     if (selectedMove > 9) { 
@@ -75,7 +83,6 @@ void loop(){
    
   }
 }
-
 
 
 // Moves

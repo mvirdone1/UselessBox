@@ -3,3 +3,8 @@
 ################################################################################
 
 /__vm
+/Debug
+/.vs/UselessBox/v14
+/UselessBox.vcxproj.filters
+/UselessBox.vcxproj
+/UselessBox.sln

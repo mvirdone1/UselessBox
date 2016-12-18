@@ -10,9 +10,9 @@
 #define SWITCH_ON_POLARITY LOW
 
 // Define finger servo stops - This largely depends on the physical configuration
-#define FINGER_REST 10
-#define FINGER_PRE_RUN 90
-#define FINGER_PUSH 180
+#define FINGER_REST 0
+// #define FINGER_PRE_RUN 90
+#define FINGER_PUSH 127
 
 #define DOOR_REST 80
 #define DOOR_OPEN 180
@@ -22,9 +22,11 @@ Servo fingerServo;
 
 int volatile doorPos = DOOR_REST;
 int volatile fingerPos = FINGER_REST;
-int volatile movingForward = 0;
-int volatile transitionToOff = 0;
-int volatile led = 0;
+
+// Deprecated variables for intended self switch finding functionality 
+// int volatile movingForward = 0;
+// int volatile transitionToOff = 0;
+// int volatile led = 0;
 
 int selectedMove = 0;             //move selector
 
@@ -40,7 +42,7 @@ void setup()
     pinMode(LED_PIN, OUTPUT);
 
     // Setup the input pin with a change detection interrupt
-    attachInterrupt(digitalPinToInterrupt(SWITCH_PIN), myISR, CHANGE);
+    // attachInterrupt(digitalPinToInterrupt(SWITCH_PIN), myISR, CHANGE);
 
     // Servo setup
     doorServo.attach(DOOR_PIN);           //setup door servo
@@ -202,7 +204,10 @@ void simpleClose()
 
     
     //Moving hand    
-    moveFinger(FINGER_PUSH, 5, 10);
+    //moveFinger(FINGER_PUSH-30, 5, 25);
+
+    //delay(500);
+    moveFinger(FINGER_PUSH, 5, 25);
 
     /*
     fingerServo.write(180);
@@ -218,10 +223,10 @@ void simpleClose()
     */
 
     //hiding hand
-    moveFinger(FINGER_REST, 4, 50);
+    moveFinger(FINGER_REST, 5, 25);
 
     //hiding door
-    moveDoor(80, 3, 15);
+    moveDoor(0, 3, 15);
 
 }
 
@@ -628,6 +633,8 @@ void sneak()
    */
 
 
+// Attempt at having software auto detect the switch change position rather than setting it experimentally
+// Gave up 12/18 due to problems with switch bouncing as well as what I suspect was problems caused between this interrupt/ISR and the servo library
 void myISR()
 {
     // Note that this ISR will only fire on transitions, so this should indicate that the switch has been changed back to its original position
@@ -639,12 +646,12 @@ void myISR()
         if (led == 0)
         {
             led = 1;
-            digitalWrite(LED_PIN, HIGH);
+            // digitalWrite(LED_PIN, HIGH);
         }
         else
         {
             led = 0;
-            digitalWrite(LED_PIN, LOW);
+            // digitalWrite(LED_PIN, LOW);
         }
 
         

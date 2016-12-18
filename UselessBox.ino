@@ -9,647 +9,130 @@
 // Depending on circuit design, the switch can be in the "ON" position as either high or low
 #define SWITCH_ON_POLARITY LOW
 
-// Define finger servo stops - This largely depends on the physical configuration
-#define FINGER_REST 10
-#define FINGER_PRE_RUN 90
-#define FINGER_PUSH 180
-
-#define DOOR_REST 80
-#define DOOR_OPEN 180
+#define ASCII_OFFSET 48
 
 Servo doorServo;
 Servo fingerServo;
 
-int volatile doorPos = DOOR_REST;
-int volatile fingerPos = FINGER_REST;
-int volatile movingForward = 0;
-int volatile transitionToOff = 0;
-int volatile led = 0;
+int volatile doorPos = 0;
+int volatile fingerPos = 0;
+int volatile doorOffset = 0;
+int volatile fingerOffset = 0;
 
-int selectedMove = 0;             //move selector
+
+int volatile setOffset = 0;
+int volatile door_1_finger_0 = 0;
+
+
+int serial_char = 0;
+int pos = 0;
 
 void setup()
 {
 
 
-    // The interrupt pin is HIGH when the switch is in the "off" position (i.e. no action is required)
-    // The interrupt pin is LOW when the switch is in the "on" position (i.e. it must be turned off)  
+    // The pin is HIGH when the switch is in the "off" position (i.e. no action is required)
+    // The pin is LOW when the switch is in the "on" position (i.e. it must be turned off)  
     pinMode(SWITCH_PIN, INPUT_PULLUP);
 
     // For debugging
     pinMode(LED_PIN, OUTPUT);
 
-    // Setup the input pin with a change detection interrupt
-    attachInterrupt(digitalPinToInterrupt(SWITCH_PIN), myISR, CHANGE);
-
+    
     // Servo setup
     doorServo.attach(DOOR_PIN);           //setup door servo
-    fingerServo.attach(FINGER_PIN);          //setup finger servo
-    doorServo.write(DOOR_REST);           //set door to hiding position 
-    fingerServo.write(FINGER_REST);            //set finger to hiding position
+    doorServo.write(0);           //set door to hiding position 
+    fingerServo.attach(FINGER_PIN);          //setup finger servo    
+    fingerServo.write(0);            //set finger to hiding position
+
+
+    //open serial terminal for troubleshooting
+    Serial.begin(9600);
 
     // A little pause before operation
     delay(100);
+
 }
 
-void moveDoor(int newPos, int step, int delayLength)
+void loop()
 {
-    if (newPos < doorPos)
+
+    if (Serial.available() > 0)
     {
+        serial_char = Serial.read();
 
-        for (doorPos = doorPos; doorPos >= newPos; doorPos -= step)
+        // First check, see if this is a decimal character. If not, set the active servo below
+        if (serial_char >= 47 && serial_char < 58)
         {
-            doorServo.write(doorPos);
-            delay(delayLength);
-        }
-    }
-    else
-    {
-        for (doorPos = doorPos; doorPos < newPos; doorPos += step)
-        {
-            doorServo.write(doorPos);
-            delay(delayLength);
-        }
+            // Take an ASCII char ant convert it to a position 0=0, 1=20, 2=40, ... 9=180
+            // Servo Pos = (char-ASCII_OFFSET) * 20
 
-    }
-
-
-    
-}
-
-void moveFinger(int newPos, int step, int delayLength)
-{
-    // See if the arm is moving forwards or backwards
-    if (newPos < fingerPos)
-    { 
-        // Backwards
-
-        for (fingerPos = fingerPos; fingerPos >= newPos; fingerPos -= step)
-        {
-            fingerServo.write(fingerPos);
-            delay(delayLength);
-        }
-
-        // Always go to the very last "rest" position
-        fingerServo.write(newPos);
-        delay(delayLength);
-
-    } // End Backwards
-    else
-    { // Forewards 
-
-        movingForward = 1;
-
-        // Note that for forewards, there's an interrupt that will get set when the switch is returned. 
-        // This means that we don't have to be precise with our hardware configuration, nor do we have the servo stalling pushing against a switch which won't move
-
-        
-        for (fingerPos = fingerPos; fingerPos < newPos; fingerPos += step)
-        {
-            fingerServo.write(fingerPos);
-
-            // See if the switch got put back (via interrupt)
-            if (transitionToOff == 1)
+            // Convert ASCII into a number
+            if (setOffset == 0)
             {
-                fingerServo.write(fingerPos-step);
-                // Clear the interrupt flag
-                transitionToOff = 0;
-                movingForward = 0;
-                break;
+                pos = ((serial_char - ASCII_OFFSET) * 20);
             }
+            
 
-            delay(delayLength);
-
-            // See if the switch got put back (via interrupt)
-            if (transitionToOff == 1)
+            // see if we are updating the finger or the door
+            if (door_1_finger_0 == 0)
             {
-                fingerServo.write(fingerPos - step);
-                // Clear the interrupt flag
-                transitionToOff = 0;
-                movingForward = 0;
-                break;
+                if (setOffset == 1)
+                {
+                    fingerOffset = (serial_char - ASCII_OFFSET);
+                }
+
+                fingerPos = pos + fingerOffset;
+                fingerServo.write(fingerPos);
+
+
             }
-        } // End Forewards
+            else
+            {
+                if (setOffset == 1)
+                {
+                    doorOffset = (serial_char - ASCII_OFFSET);
+                }
 
-    }
-   
-}
+                doorPos = pos + doorOffset;
+                doorServo.write(doorPos);
+                
 
-void loop() {
-
-    //if the switch is on, move door and finger to switch it off	
-    if (digitalRead(SWITCH_PIN) == SWITCH_ON_POLARITY)
-    {
-
-        simpleClose();
-
-        /*
-        if (selectedMove > 9) {
-        selectedMove = 0;
-        } //when all moves are played, repeat the moves from beginning
-
-
-
-        if (selectedMove == 0) {
-        simpleClose();
+            }
         }
-        else if (selectedMove == 1) {
-        simpleClose();
-        }
-        else if (selectedMove == 2) {
-        simpleClose2();
-        }
-        else if (selectedMove == 3) {
-        crazydoor();
-        }
-        else if (selectedMove == 4) {
-        slow();
-        }
-        else if (selectedMove == 5) {
-        serious();
-        }
-        else if (selectedMove == 6) {
-        trollClose();
-        }
-        else if (selectedMove == 7) {
-        simpleClose();
-        }
-        else if (selectedMove == 8) {
-        matrix();
-        }
-        else if (selectedMove == 9) {
-        sneak();
-        }
-
-       selectedMove += 1;         //swith to next move
-
-       */
-
-    }
-}
-
-// Moves
-
-   // basic move 
-void simpleClose()
-{
-    //Move(Position, Step Size, Delay)
-
-    //Moving door
-    moveDoor(85, 3, 15);
-     // moveDoor(155, 3, 15);
-
-
-    
-    //Moving hand    
-    moveFinger(FINGER_PUSH, 5, 10);
-
-    /*
-    fingerServo.write(180);
-    while (transitionToOff == 0)
-    {
-        fingerServo.write(180);
-    }
-    
-    transitionToOff = 0;
-
-    fingerServo.write(0);
-    delay(100);
-    */
-
-    //hiding hand
-    moveFinger(FINGER_REST, 4, 50);
-
-    //hiding door
-    moveDoor(80, 3, 15);
-
-}
-
-/*
-// open and wait, then move finger and wait, then switch of and hide
- void simpleClose2()
-{
-//Moving door
-  for(pos = 80; pos < 155; pos += 3)
-  {
-  doorServo.write(pos);
-  delay(15);
-  }
-  delay(800);
-  //Moving hand
-  for(pos = 0; pos < 100; pos += 4)
-  {
-  fingerServo.write(pos);
-  delay(15);
-  }
-  delay(1000);
-  for(pos = 100; pos < 129; pos += 4)
-  {
-  fingerServo.write(pos);
-  delay(15);
-  }
-
-  //hiding hand
-  for(pos = 129; pos>=0; pos-=5)
-  {
-  fingerServo.write(pos);
-  delay(15);
-  }
-
-  //hiding door
-  for(pos = 155; pos>=80; pos-=3)
-  {
-  doorServo.write(pos);
-  delay(15);
-
-
- }
-
- }
-
- //open door then close it many times, wait, then quickly reopen, switch off and hide.
-
- void crazydoor()
-{
-
- //Moving door
-  for(pos = 80; pos < 125; pos += 3)
-  {
-  doorServo.write(pos);
-  delay(15);
-  }
-
-  //hiding door
-  for(pos = 125; pos>=80; pos-=5)
-  {
-  doorServo.write(pos);
-  delay(15);
-  }
- //Moving door
-  for(pos = 80; pos < 110; pos += 3)
-  {
-  doorServo.write(pos);
-  delay(15);
-  }
-
-  //hiding door
-  for(pos = 110; pos>=80; pos-=15)
-  {
-  doorServo.write(pos);
-  delay(15);
-  }
-  delay(700);
- //Moving door
-  for(pos = 80; pos < 125; pos += 3)
-  {
-  doorServo.write(pos);
-  delay(15);
-  }
-  delay(700);
-  //hiding door
-  for(pos = 125; pos>=80; pos-=5)
-  {
-  doorServo.write(pos);
-  delay(15);
-  }
-
-//Moving door
-  for(pos = 80; pos < 155; pos += 8)
-  {
-  doorServo.write(pos);
-  delay(15);
-  }
-
-  //Moving hand
-  for(pos = 0; pos < 129; pos += 3)
-  {
-  fingerServo.write(pos);
-  delay(15);
-  }
-
-  //hiding hand
-  for(pos = 129; pos>=0; pos-=3)
-  {
-  fingerServo.write(pos);
-  delay(15);
-  }
-
-  //hiding door
-  for(pos = 155; pos>=80; pos-=15)
-  {
-  doorServo.write(pos);
-  delay(15);
-  }
-
-}
-
-
-//open door,move finger very slowly forward and back to hiding very slowly, then quickly close door
-void slow()
-{
-
-//Moving door
-    for(pos = 80; pos < 155; pos += 1)
-    {
-    doorServo.write(pos);
-    delay(30);
-    }
-
-    //Moving hand
-    for(pos = 0; pos < 129; pos += 1)
-    {
-    fingerServo.write(pos);
-    delay(30);
-    }
-
-    //hiding hand
-    for(pos = 129; pos>=0; pos-=1)
-    {
-    fingerServo.write(pos);
-    delay(30);
-    }
-
-    //hiding door
-    for(pos = 155; pos>=125; pos-=1)
-    {
-    doorServo.write(pos);
-    delay(30);
-    }
-    delay(100);
-    for(pos = 125; pos>=80; pos-=4)
-    {
-    doorServo.write(pos);
-    delay(15);
-    }
-
-
- }
-
- //serious
-
- void serious() {
-
-//Moving door
-    for(pos = 80; pos < 155; pos += 3)
-    {
-    doorServo.write(pos);
-    delay(15);
-    }
-
-    //Moving hand
-    for(pos = 0; pos < 70; pos += 1)
-    {
-    fingerServo.write(pos);
-    delay(15);
-    }
-    delay(800);
-
-
-    //hiding door
-    for(pos = 155; pos>=130; pos-=3)
-    {
-    doorServo.write(pos);
-    delay(15);
-    }
-
-    //hiding door
-    for(pos = 130; pos < 155; pos+=3)
-    {
-    doorServo.write(pos);
-    delay(15);
-    }
-     //hiding door
-    for(pos = 155; pos>=130; pos-=3)
-    {
-    doorServo.write(pos);
-    delay(15);
-    }
-    //hiding door
-    for(pos = 130; pos < 155; pos+=3)
-    {
-    doorServo.write(pos);
-    delay(15);
-    }
-
-    fingerServo.write(40);
-    delay(1000);
-
-    //Moving hand
-    for(pos = 40; pos < 129; pos += 4)
-    {
-    fingerServo.write(pos);
-    delay(15);
-    }
-
-    //hiding hand
-    for(pos = 129; pos>=0; pos-=4)
-    {
-    fingerServo.write(pos);
-    delay(15);
-    }
-
-
-    for(pos = 120; pos>=80; pos -= 1)
-    {
-    doorServo.write(pos);
-    delay(15);
-    }
-
-
-
-}
-
-void trollClose(){
-//Moving door
-    for(pos = 80; pos < 155; pos += 3)
-    {
-    doorServo.write(pos);
-    delay(15);
-    }
-
-    //Moving hand
-    for(pos = 0; pos < 127; pos += 4) 
-    {
-    fingerServo.write(pos);
-    delay(15);
-    }
-    //hiding door
-    for(pos = 155; pos>=130; pos-=3)
-    {
-    doorServo.write(pos);
-    delay(15);
-    }
-    delay(2000);
-
-    for(pos = 130; pos < 155; pos += 3)
-    {
-    doorServo.write(pos);
-    delay(15);
-    }
-
-    for(pos = 155; pos>=140; pos-=3)
-    {
-    doorServo.write(pos);
-    delay(15);
-    }
-    for(pos = 140; pos < 155; pos += 3)
-    {
-    doorServo.write(pos);
-    delay(15);
-    }
-    delay(500);
-    //hiding hand
-    for(pos = 127; pos>=0; pos-=4)
-    {
-    fingerServo.write(pos);
-    delay(15);
-    }
-
-    //hiding door
-    for(pos = 155; pos>=80; pos-=3)
-    {
-    doorServo.write(pos);
-    delay(15);
-    }
-
-}
-
-void matrix()
-{
-
- //Moving door
-    for(pos = 80; pos < 155; pos += 3)
-    {
-    doorServo.write(pos);
-    delay(15);
-    }
-
-    //Moving hand
-    for(pos = 0; pos < 80; pos += 4)
-    {
-    fingerServo.write(pos);
-    delay(15);
-    }
-
-    for(pos = 80; pos < 129; pos += 1)
-    {
-    fingerServo.write(pos);
-    delay(30);
-    }
-    delay(300);
-
-    for(pos = 129; pos>=0; pos-=4)
-    {
-    fingerServo.write(pos);
-    delay(10);
-    }
-
-    //hiding door
-    for(pos = 155; pos>=80; pos-=3)
-    {
-    doorServo.write(pos);
-    delay(15);
-    }
-
-}
-
-void sneak()
-   {
-   //Moving door
-    for(pos = 80; pos < 130; pos += 1)
-    {
-    doorServo.write(pos);
-    delay(30);
-    }
-    delay(2000);
-
-    //Moving hand
-    for(pos = 0; pos < 40; pos += 1)
-    {
-    fingerServo.write(pos);
-    delay(30);
-    }
-
-    delay(500);
-
-    for(pos = 130; pos < 155; pos += 4)
-    {
-    doorServo.write(pos);
-    delay(15);
-    }
-    delay(100);
-
-    for(pos = 40; pos < 90; pos += 4)
-    {
-    fingerServo.write(pos);
-    delay(15);
-    }
-    delay(500);
-    //hiding hand
-    for(pos = 90; pos>=70; pos-=4)
-    {
-    fingerServo.write(pos);
-    delay(15);
-    }
-    delay(100);
-    for(pos = 70; pos < 90; pos += 4)
-    {
-
-    fingerServo.write(pos);
-    delay(15);
-    }
-    delay(100);
-    for(pos = 90; pos>=70; pos-=4)
-    {
-    fingerServo.write(pos);
-    delay(15);
-    }
-    delay(100);
-
-    for(pos = 70; pos < 129; pos += 4)
-    {
-
-    fingerServo.write(pos);
-    delay(15);
-    }
-
-    for(pos = 129; pos>=0; pos-=4)
-    {
-    fingerServo.write(pos);
-    delay(15);
-    }
-    //hiding door
-    for(pos = 155; pos>=80; pos-=3)
-    {
-    doorServo.write(pos);
-    delay(15);
-    }
-   }
-   */
-
-
-void myISR()
-{
-    // Note that this ISR will only fire on transitions, so this should indicate that the switch has been changed back to its original position
-    if ((digitalRead(SWITCH_PIN) != SWITCH_ON_POLARITY) && (movingForward == 1))
-    {
-        // Pull the servo off the switch instantly        
-        transitionToOff = 1;
-
-        if (led == 0)
+        // see if it is a "D" or "d", if so, set the active device to door
+        else if (serial_char == 68 || serial_char == 100)
         {
-            led = 1;
-            digitalWrite(LED_PIN, HIGH);
+            door_1_finger_0 = 1;
+            setOffset = 0;
+
         }
-        else
+        // see if it is a "F" or "f", if so, set the active device to finger
+        else if (serial_char == 70 || serial_char == 102)
         {
-            led = 0;
-            digitalWrite(LED_PIN, LOW);
+            door_1_finger_0 = 0;
+            setOffset = 0;
+        }
+        // see if it is a "O" or "o", if so, set the offset for the active servo
+        else if (serial_char == 79 || serial_char == 111)
+        {
+            setOffset = 1;
         }
 
-        
+ 
+
+
     }
 
-
+// on each loop, update the LED so you can troubleshoot the switch polarity
+if (digitalRead(SWITCH_PIN) == SWITCH_ON_POLARITY)
+{
+    // Turn on if the switch is on, otherwise turn off
+    digitalWrite(LED_PIN, HIGH);
+}
+else
+{
+    digitalWrite(LED_PIN, LOW);
 }
 
+}

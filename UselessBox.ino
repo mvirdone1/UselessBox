@@ -11,11 +11,11 @@
 
 // Define finger servo stops - This largely depends on the physical configuration
 #define FINGER_REST 0
-// #define FINGER_PRE_RUN 90
-#define FINGER_PUSH 127
+#define FINGER_TAP 7
+#define FINGER_PUSH 126
 
-#define DOOR_REST 80
-#define DOOR_OPEN 180
+#define DOOR_REST 16
+#define DOOR_OPEN 81
 
 Servo doorServo;
 Servo fingerServo;
@@ -23,26 +23,20 @@ Servo fingerServo;
 int volatile doorPos = DOOR_REST;
 int volatile fingerPos = FINGER_REST;
 
-// Deprecated variables for intended self switch finding functionality 
-// int volatile movingForward = 0;
-// int volatile transitionToOff = 0;
-// int volatile led = 0;
 
 int selectedMove = 0;             //move selector
 
 void setup()
 {
 
-
-    // The interrupt pin is HIGH when the switch is in the "off" position (i.e. no action is required)
-    // The interrupt pin is LOW when the switch is in the "on" position (i.e. it must be turned off)  
+    // For my hardware configuration:
+    // The switch pin is HIGH when the switch is in the "off" position (i.e. no action is required)
+    // The switch pin is LOW when the switch is in the "on" position (i.e. it must be turned off)  
     pinMode(SWITCH_PIN, INPUT_PULLUP);
 
     // For debugging
     pinMode(LED_PIN, OUTPUT);
 
-    // Setup the input pin with a change detection interrupt
-    // attachInterrupt(digitalPinToInterrupt(SWITCH_PIN), myISR, CHANGE);
 
     // Servo setup
     doorServo.attach(DOOR_PIN);           //setup door servo
@@ -75,7 +69,8 @@ void moveDoor(int newPos, int step, int delayLength)
 
     }
 
-
+    doorServo.write(newPos);
+    delay(delayLength);
     
 }
 
@@ -85,55 +80,27 @@ void moveFinger(int newPos, int step, int delayLength)
     if (newPos < fingerPos)
     { 
         // Backwards
-
         for (fingerPos = fingerPos; fingerPos >= newPos; fingerPos -= step)
         {
             fingerServo.write(fingerPos);
             delay(delayLength);
         }
-
-        // Always go to the very last "rest" position
-        fingerServo.write(newPos);
-        delay(delayLength);
-
+       
     } // End Backwards
     else
     { // Forewards 
-
-        movingForward = 1;
-
-        // Note that for forewards, there's an interrupt that will get set when the switch is returned. 
-        // This means that we don't have to be precise with our hardware configuration, nor do we have the servo stalling pushing against a switch which won't move
-
-        
+       
         for (fingerPos = fingerPos; fingerPos < newPos; fingerPos += step)
         {
             fingerServo.write(fingerPos);
-
-            // See if the switch got put back (via interrupt)
-            if (transitionToOff == 1)
-            {
-                fingerServo.write(fingerPos-step);
-                // Clear the interrupt flag
-                transitionToOff = 0;
-                movingForward = 0;
-                break;
-            }
-
             delay(delayLength);
 
-            // See if the switch got put back (via interrupt)
-            if (transitionToOff == 1)
-            {
-                fingerServo.write(fingerPos - step);
-                // Clear the interrupt flag
-                transitionToOff = 0;
-                movingForward = 0;
-                break;
-            }
         } // End Forewards
 
     }
+
+    fingerServo.write(newPos);
+    delay(delayLength);
    
 }
 
@@ -143,49 +110,51 @@ void loop() {
     if (digitalRead(SWITCH_PIN) == SWITCH_ON_POLARITY)
     {
 
-        simpleClose();
+        // simpleClose();
 
-        /*
-        if (selectedMove > 9) {
+        
+        if (selectedMove > 9) 
+        {
         selectedMove = 0;
         } //when all moves are played, repeat the moves from beginning
 
 
+        switch (selectedMove)
+        {
+        case 0:
+        case 1:
+            simpleClose();
+            break;
+        case 2:
+            simpleClose2();
+            break;
+        case 3:
+            crazydoor();
+            break;
+        case 4:
+            slow();
+            break;
+        case 5:
+            serious();
+            break;
+        case 6:
+            trollClose();
+            break;
+        case 7:
+            sneak();
+            break;
+        case 8:
+            twobits();
+            break;
+        case 9:
+            heart();
+            break;
 
-        if (selectedMove == 0) {
-        simpleClose();
-        }
-        else if (selectedMove == 1) {
-        simpleClose();
-        }
-        else if (selectedMove == 2) {
-        simpleClose2();
-        }
-        else if (selectedMove == 3) {
-        crazydoor();
-        }
-        else if (selectedMove == 4) {
-        slow();
-        }
-        else if (selectedMove == 5) {
-        serious();
-        }
-        else if (selectedMove == 6) {
-        trollClose();
-        }
-        else if (selectedMove == 7) {
-        simpleClose();
-        }
-        else if (selectedMove == 8) {
-        matrix();
-        }
-        else if (selectedMove == 9) {
-        sneak();
         }
 
        selectedMove += 1;         //swith to next move
 
-       */
+       
 
     }
 }
@@ -195,156 +164,78 @@ void loop() {
    // basic move 
 void simpleClose()
 {
-    //Move(Position, Step Size, Delay)
+    //move(Position, Step Size, Delay)
 
     //Moving door
-    moveDoor(85, 3, 15);
+    moveDoor(DOOR_OPEN, 3, 15);
      // moveDoor(155, 3, 15);
-
-
     
-    //Moving hand    
-    //moveFinger(FINGER_PUSH-30, 5, 25);
+    //Moving finger    
+    moveFinger(FINGER_PUSH, 5, 15);
+        
 
-    //delay(500);
-    moveFinger(FINGER_PUSH, 5, 25);
-
-    /*
-    fingerServo.write(180);
-    while (transitionToOff == 0)
-    {
-        fingerServo.write(180);
-    }
-    
-    transitionToOff = 0;
-
-    fingerServo.write(0);
-    delay(100);
-    */
-
-    //hiding hand
-    moveFinger(FINGER_REST, 5, 25);
+    //hiding finger
+    moveFinger(FINGER_REST, 5, 15);
 
     //hiding door
-    moveDoor(0, 3, 15);
+    moveDoor(DOOR_REST, 3, 15);
 
 }
 
-/*
+
 // open and wait, then move finger and wait, then switch of and hide
  void simpleClose2()
 {
-//Moving door
-  for(pos = 80; pos < 155; pos += 3)
-  {
-  doorServo.write(pos);
-  delay(15);
-  }
-  delay(800);
-  //Moving hand
-  for(pos = 0; pos < 100; pos += 4)
-  {
-  fingerServo.write(pos);
-  delay(15);
-  }
-  delay(1000);
-  for(pos = 100; pos < 129; pos += 4)
-  {
-  fingerServo.write(pos);
-  delay(15);
-  }
+     
+    //Moving door
+    moveDoor(DOOR_OPEN, 10, 15);
 
-  //hiding hand
-  for(pos = 129; pos>=0; pos-=5)
-  {
-  fingerServo.write(pos);
-  delay(15);
-  }
+    // Pause
+    delay(800);
 
-  //hiding door
-  for(pos = 155; pos>=80; pos-=3)
-  {
-  doorServo.write(pos);
-  delay(15);
+    //Move close
+    moveFinger(FINGER_PUSH - 30, 10, 15);
+  
+    // Pause again
+    delay(1000);
+    
+    // Flip Switch
+    moveFinger(FINGER_PUSH, 5, 15);
 
-
- }
-
+    // Hide finger
+    moveFinger(FINGER_REST, 3, 15);
+  
+    // Close door
+    moveDoor(DOOR_REST, 3, 15);
+  
  }
 
  //open door then close it many times, wait, then quickly reopen, switch off and hide.
 
  void crazydoor()
 {
+     // Open close rapidly
+     for (int i = 0; i < 5; i++)
+     {
+         moveDoor(DOOR_OPEN - 30, 10, 15);
+         moveDoor(DOOR_REST, 10, 15);
+     }
 
- //Moving door
-  for(pos = 80; pos < 125; pos += 3)
-  {
-  doorServo.write(pos);
-  delay(15);
-  }
+     // Sleep for a little while to build the suspense
+    delay(700);
+ 
+    // Open door and delay again
+    moveDoor(DOOR_OPEN, 5, 15);
+    delay(700);
 
-  //hiding door
-  for(pos = 125; pos>=80; pos-=5)
-  {
-  doorServo.write(pos);
-  delay(15);
-  }
- //Moving door
-  for(pos = 80; pos < 110; pos += 3)
-  {
-  doorServo.write(pos);
-  delay(15);
-  }
+    // Flip Switch
+    moveFinger(FINGER_PUSH, 5, 15);
 
-  //hiding door
-  for(pos = 110; pos>=80; pos-=15)
-  {
-  doorServo.write(pos);
-  delay(15);
-  }
-  delay(700);
- //Moving door
-  for(pos = 80; pos < 125; pos += 3)
-  {
-  doorServo.write(pos);
-  delay(15);
-  }
-  delay(700);
-  //hiding door
-  for(pos = 125; pos>=80; pos-=5)
-  {
-  doorServo.write(pos);
-  delay(15);
-  }
+    // Hide finger
+    moveFinger(FINGER_REST, 3, 15);
 
-//Moving door
-  for(pos = 80; pos < 155; pos += 8)
-  {
-  doorServo.write(pos);
-  delay(15);
-  }
-
-  //Moving hand
-  for(pos = 0; pos < 129; pos += 3)
-  {
-  fingerServo.write(pos);
-  delay(15);
-  }
-
-  //hiding hand
-  for(pos = 129; pos>=0; pos-=3)
-  {
-  fingerServo.write(pos);
-  delay(15);
-  }
-
-  //hiding door
-  for(pos = 155; pos>=80; pos-=15)
-  {
-  doorServo.write(pos);
-  delay(15);
-  }
+    // Close door
+    moveDoor(DOOR_REST, 3, 15);
 
 }
 
@@ -352,311 +243,206 @@ void simpleClose()
 //open door,move finger very slowly forward and back to hiding very slowly, then quickly close door
 void slow()
 {
+    //Open door
+    moveDoor(DOOR_OPEN, 1, 20);
 
-//Moving door
-    for(pos = 80; pos < 155; pos += 1)
-    {
-    doorServo.write(pos);
-    delay(30);
-    }
+    //Move close
+    moveFinger(FINGER_PUSH - 20, 1, 30);
 
-    //Moving hand
-    for(pos = 0; pos < 129; pos += 1)
-    {
-    fingerServo.write(pos);
-    delay(30);
-    }
+    // Flip Switch, note because we're so close, you need a little extra umph
+    moveFinger(FINGER_PUSH+5, 5, 10);
 
-    //hiding hand
-    for(pos = 129; pos>=0; pos-=1)
-    {
-    fingerServo.write(pos);
-    delay(30);
-    }
+    // Hide finger
+    moveFinger(FINGER_REST, 10, 15);
 
-    //hiding door
-    for(pos = 155; pos>=125; pos-=1)
-    {
-    doorServo.write(pos);
-    delay(30);
-    }
-    delay(100);
-    for(pos = 125; pos>=80; pos-=4)
-    {
-    doorServo.write(pos);
-    delay(15);
-    }
-
+    // Close door
+    moveDoor(DOOR_REST, 10, 15);
 
  }
+
 
  //serious
 
  void serious() {
 
-//Moving door
-    for(pos = 80; pos < 155; pos += 3)
-    {
-    doorServo.write(pos);
-    delay(15);
-    }
+     
+     //open door
+     moveDoor(DOOR_OPEN, 3, 15);
 
-    //Moving hand
-    for(pos = 0; pos < 70; pos += 1)
-    {
-    fingerServo.write(pos);
-    delay(15);
-    }
-    delay(800);
+     // Move finger partially out
+     moveFinger(FINGER_PUSH - 40, 5, 15);
+     delay(800);
+
+     // Slam the door a few times
+     for (int i = 0; i < 4; i++)
+     {
+         //Close door onto finger
+         moveDoor(DOOR_OPEN - 40, 15, 10);
+         delay(100);
+
+         //open door
+         moveDoor(DOOR_OPEN, 15, 10);
+         delay(100);
+     }
+     
+
+     // Move finger back quickly and slam the door
+     moveFinger(FINGER_REST, 10, 5);
+     moveDoor(DOOR_REST, 10, 5);
+     delay(800);
 
 
-    //hiding door
-    for(pos = 155; pos>=130; pos-=3)
-    {
-    doorServo.write(pos);
-    delay(15);
-    }
+     // Do the normal sequence, but do it fast
+     //Moving door
+     moveDoor(DOOR_OPEN, 10, 15);
+     
+     // Push switch
+     moveFinger(FINGER_PUSH, 10, 15);
+     delay(100);
 
-    //hiding door
-    for(pos = 130; pos < 155; pos+=3)
-    {
-    doorServo.write(pos);
-    delay(15);
-    }
+     //hiding finger
+     moveFinger(FINGER_REST, 10, 15);
+
      //hiding door
-    for(pos = 155; pos>=130; pos-=3)
-    {
-    doorServo.write(pos);
-    delay(15);
-    }
-    //hiding door
-    for(pos = 130; pos < 155; pos+=3)
-    {
-    doorServo.write(pos);
-    delay(15);
-    }
-
-    fingerServo.write(40);
-    delay(1000);
-
-    //Moving hand
-    for(pos = 40; pos < 129; pos += 4)
-    {
-    fingerServo.write(pos);
-    delay(15);
-    }
-
-    //hiding hand
-    for(pos = 129; pos>=0; pos-=4)
-    {
-    fingerServo.write(pos);
-    delay(15);
-    }
+     moveDoor(DOOR_REST, 10, 15);
 
 
-    for(pos = 120; pos>=80; pos -= 1)
-    {
-    doorServo.write(pos);
-    delay(15);
-    }
-
-
-
+     
 }
 
 void trollClose(){
-//Moving door
-    for(pos = 80; pos < 155; pos += 3)
-    {
-    doorServo.write(pos);
-    delay(15);
-    }
 
-    //Moving hand
-    for(pos = 0; pos < 127; pos += 4) 
-    {
-    fingerServo.write(pos);
-    delay(15);
-    }
-    //hiding door
-    for(pos = 155; pos>=130; pos-=3)
-    {
-    doorServo.write(pos);
-    delay(15);
-    }
+    // Open door normally
+    moveDoor(DOOR_OPEN, 3, 15);
+
+    // Push the button like normal, close the lid on yourself, and sit there for a while
+    moveFinger(FINGER_PUSH, 5, 15);
+    delay(100);
+    moveFinger(FINGER_PUSH - 8, 4, 15);
+    moveDoor(DOOR_OPEN-40, 3, 15);
     delay(2000);
 
-    for(pos = 130; pos < 155; pos += 3)
+    // Open the door again
+    moveDoor(DOOR_OPEN, 3, 15);
+    
+    // Push the switch a few times to make a point
+    for (int i = 0; i < 4; i++)
     {
-    doorServo.write(pos);
-    delay(15);
-    }
-
-    for(pos = 155; pos>=140; pos-=3)
-    {
-    doorServo.write(pos);
-    delay(15);
-    }
-    for(pos = 140; pos < 155; pos += 3)
-    {
-    doorServo.write(pos);
-    delay(15);
-    }
+        moveFinger(FINGER_PUSH - 25, 5, 15);
+        delay(200);
+        moveFinger(FINGER_PUSH - 8 , 4, 15);
+        delay(200);
+    }    
     delay(500);
-    //hiding hand
-    for(pos = 127; pos>=0; pos-=4)
-    {
-    fingerServo.write(pos);
-    delay(15);
-    }
 
-    //hiding door
-    for(pos = 155; pos>=80; pos-=3)
-    {
-    doorServo.write(pos);
-    delay(15);
-    }
+    // Close normally
+    moveFinger(FINGER_REST, 5, 15);        
+    moveDoor(DOOR_REST, 3, 15);
+    
 
 }
 
-void matrix()
-{
-
- //Moving door
-    for(pos = 80; pos < 155; pos += 3)
-    {
-    doorServo.write(pos);
-    delay(15);
-    }
-
-    //Moving hand
-    for(pos = 0; pos < 80; pos += 4)
-    {
-    fingerServo.write(pos);
-    delay(15);
-    }
-
-    for(pos = 80; pos < 129; pos += 1)
-    {
-    fingerServo.write(pos);
-    delay(30);
-    }
-    delay(300);
-
-    for(pos = 129; pos>=0; pos-=4)
-    {
-    fingerServo.write(pos);
-    delay(10);
-    }
-
-    //hiding door
-    for(pos = 155; pos>=80; pos-=3)
-    {
-    doorServo.write(pos);
-    delay(15);
-    }
-
-}
 
 void sneak()
    {
-   //Moving door
-    for(pos = 80; pos < 130; pos += 1)
-    {
-    doorServo.write(pos);
-    delay(30);
-    }
+
+    // Open the door slowly
+    moveDoor(DOOR_OPEN, 1, 30);       
     delay(2000);
 
-    //Moving hand
-    for(pos = 0; pos < 40; pos += 1)
-    {
-    fingerServo.write(pos);
-    delay(30);
-    }
+    // Move the finger slowly    
+    moveFinger(FINGER_PUSH - 50, 1, 30);
+    moveDoor(DOOR_REST, 20, 15);
 
+    // Then pounce and hide
+    moveFinger(FINGER_PUSH, 25, 15);
+    delay(100);
+    moveFinger(FINGER_REST, 25, 15);
     delay(500);
-
-    for(pos = 130; pos < 155; pos += 4)
-    {
-    doorServo.write(pos);
-    delay(15);
-    }
-    delay(100);
-
-    for(pos = 40; pos < 90; pos += 4)
-    {
-    fingerServo.write(pos);
-    delay(15);
-    }
-    delay(500);
-    //hiding hand
-    for(pos = 90; pos>=70; pos-=4)
-    {
-    fingerServo.write(pos);
-    delay(15);
-    }
-    delay(100);
-    for(pos = 70; pos < 90; pos += 4)
-    {
-
-    fingerServo.write(pos);
-    delay(15);
-    }
-    delay(100);
-    for(pos = 90; pos>=70; pos-=4)
-    {
-    fingerServo.write(pos);
-    delay(15);
-    }
-    delay(100);
-
-    for(pos = 70; pos < 129; pos += 4)
-    {
-
-    fingerServo.write(pos);
-    delay(15);
-    }
-
-    for(pos = 129; pos>=0; pos-=4)
-    {
-    fingerServo.write(pos);
-    delay(15);
-    }
-    //hiding door
-    for(pos = 155; pos>=80; pos-=3)
-    {
-    doorServo.write(pos);
-    delay(15);
-    }
+   
    }
-   */
 
-
-// Attempt at having software auto detect the switch change position rather than setting it experimentally
-// Gave up 12/18 due to problems with switch bouncing as well as what I suspect was problems caused between this interrupt/ISR and the servo library
-void myISR()
+void heart()
 {
-    // Note that this ISR will only fire on transitions, so this should indicate that the switch has been changed back to its original position
-    if ((digitalRead(SWITCH_PIN) != SWITCH_ON_POLARITY) && (movingForward == 1))
+    // prep
+    moveFinger(FINGER_TAP - 5, 1, 15);
+    delay(100);
+
+    // beat the heart by using the finger on the lid, then accelerate, beat for a while, then smack the switch
+    for (int i = 0; i < 5; i++)
     {
-        // Pull the servo off the switch instantly        
-        transitionToOff = 1;
-
-        if (led == 0)
-        {
-            led = 1;
-            // digitalWrite(LED_PIN, HIGH);
-        }
-        else
-        {
-            led = 0;
-            // digitalWrite(LED_PIN, LOW);
-        }
-
-        
+        moveFinger(FINGER_TAP, 5, 10);        
+        delay(400);        
+        moveFinger(FINGER_TAP - 5, 25, 15);
+        delay(800);
+    }
+    for (int i = 10; i > 0; i--)
+    {
+        moveFinger(FINGER_TAP, 5, 10);
+        delay(80 + (32*i));
+        moveFinger(FINGER_TAP - 5, 25, 15);
+        delay(160 + (64 *i));
+    }
+    for (int i = 0; i < 12; i++)
+    {
+        moveFinger(FINGER_TAP, 5, 10);
+        delay(80);
+        moveFinger(FINGER_TAP - 5, 25, 15);
+        delay(160);
     }
 
+    // GO FAST!
+    moveDoor(DOOR_OPEN, 5, 15); 
+    moveFinger(FINGER_PUSH, 5, 10);
+    delay(100);
+    moveFinger(FINGER_REST, 5, 10);
+    moveDoor(DOOR_REST, 5, 10);
 
 }
+
+void twobits()
+{
+    delay(1000);
+
+    // Shave and a haircut
+    moveFinger(FINGER_TAP, 5, 10);
+    delay(50);
+    moveFinger(FINGER_REST, 1, 10);
+    delay(300);
+
+    moveFinger(FINGER_TAP, 5, 10);
+    delay(50);
+    moveFinger(FINGER_REST, 1, 10);
+    delay(100);
+
+    moveFinger(FINGER_TAP, 5, 10);
+    delay(50);
+    moveFinger(FINGER_REST, 1, 10);
+    delay(75);
+
+    moveFinger(FINGER_TAP, 5, 10);
+    delay(50);
+    moveFinger(FINGER_REST, 1, 10);
+    delay(250);
+
+    moveFinger(FINGER_TAP, 5, 10);
+    delay(50);
+    moveFinger(FINGER_REST, 1, 10);
+    delay(300);
+    delay(1200);
+
+    // Two bits
+    moveDoor(DOOR_OPEN, 5, 15); 
+    delay(300);
+    moveFinger(FINGER_PUSH, 5, 10);
+    delay(100);
+    moveFinger(FINGER_PUSH - 15, 4, 15);
+    delay(3000);
+
+    moveFinger(FINGER_REST, 3, 15);
+    moveDoor(DOOR_REST, 3, 15);
+    
+}
+
+
 

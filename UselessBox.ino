@@ -15,7 +15,7 @@
 #define FINGER_PUSH 126
 
 #define DOOR_REST 16
-#define DOOR_OPEN 81
+#define DOOR_OPEN 82
 
 Servo doorServo;
 Servo fingerServo;
@@ -113,7 +113,7 @@ void loop() {
         // simpleClose();
 
         
-        if (selectedMove > 9) 
+        if (selectedMove > 10) 
         {
         selectedMove = 0;
         } //when all moves are played, repeat the moves from beginning
@@ -122,7 +122,7 @@ void loop() {
         switch (selectedMove)
         {
         case 0:
-        case 1:
+        case 1:            
             simpleClose();
             break;
         case 2:
@@ -135,7 +135,7 @@ void loop() {
             slow();
             break;
         case 5:
-            serious();
+            twobits();
             break;
         case 6:
             trollClose();
@@ -144,10 +144,13 @@ void loop() {
             sneak();
             break;
         case 8:
-            twobits();
+            serious();
             break;
         case 9:
             heart();
+            break;
+        case 10:
+            runPullHit();
             break;
 
         }
@@ -222,6 +225,16 @@ void simpleClose()
      }
 
      // Sleep for a little while to build the suspense
+    delay(700);
+
+    // Open close rapidly
+    for (int i = 0; i < 5; i++)
+    {
+        moveDoor(DOOR_OPEN - 30, 10, 15);
+        moveDoor(DOOR_REST, 10, 15);
+    }
+
+    // Sleep for a little while to build the suspense
     delay(700);
  
     // Open door and delay again
@@ -342,6 +355,29 @@ void trollClose(){
 
 }
 
+void runPullHit()
+{
+
+    // Open door normally
+    moveDoor(DOOR_OPEN, 3, 15);
+
+    // Move as if we're going to hit the switch
+    moveFinger(FINGER_PUSH - 25, 5, 15);
+    delay(2000);
+    // Put the finger away and close normally
+    moveFinger(FINGER_REST, 1, 15);
+    moveDoor(DOOR_REST, 1, 15);
+    delay(1500);
+
+    // GO FAST!
+    moveDoor(DOOR_OPEN, 5, 15);
+    moveFinger(FINGER_PUSH, 5, 10);
+    delay(100);
+    moveFinger(FINGER_REST, 5, 10);
+    moveDoor(DOOR_REST, 5, 10);
+
+
+}
 
 void sneak()
    {
@@ -437,7 +473,7 @@ void twobits()
     moveFinger(FINGER_PUSH, 5, 10);
     delay(100);
     moveFinger(FINGER_PUSH - 15, 4, 15);
-    delay(3000);
+    delay(1000);
 
     moveFinger(FINGER_REST, 3, 15);
     moveDoor(DOOR_REST, 3, 15);
